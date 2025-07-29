@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocket STOMP 테스트</title>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+  <h2>📡 실시간 플랜 테스트</h2>
+  <button onclick="sendUpdate()">플랜 업데이트</button>
+  <button onclick="timeTableCreate()">시간표 생성</button>
+  <button onclick="timeTableBlockCreate()">시간표 블록 생성</button>
+
+  <script>
+    const socket = new SockJS("http://localhost:8080/ws-plan"); // 너의 서버 주소
+    const stompClient = Stomp.over(socket);
+
+    stompClient.connect({}, function (frame) {
+      console.log("✅ WebSocket 연결 완료:", frame);
+
+      stompClient.subscribe("/topic/plan/2/update/plan", function (message) {
+        console.log("📩 수신된 메시지:", message.body);
+        alert("수신된 메시지: " + message.body);
+      });
+      stompClient.subscribe("/topic/plan/2/create/timetable", function (message) {
+        console.log("📩 수신된 메시지:", message.body);
+        alert("수신된 메시지: " + message.body);
+      });
+      stompClient.subscribe("/topic/plan/2/create/timetableBlock", function (message) {
+        console.log("📩 수신된 메시지:", message.body);
+        alert("수신된 메시지: " + message.body);
+      });
+
+    });
+
+    function sendUpdate() {
+      const planData = {
+        planName: "new plan",
+      };
+      stompClient.send("/app/plan/2/update/plan", {}, JSON.stringify(planData));
+      console.log("🚀 메시지 전송:", planData);
+    }
+
+    function timeTableCreate() {
+      const timeTableData = {
+        timetableVO: {
+          date: "2023-10-01",
+          startTime: "10:00:00",
+          endTime: "22:00:00",
+        }
+      };
+      stompClient.send("/app/plan/2/create/timetable", {}, JSON.stringify(timeTableData));
+      console.log("🚀 시간표 생성 메시지 전송:", timeTableData);
+    }
+
+    function timeTableBlockCreate() {
+      const timeTableBlockData = {
+        timeTableId: 1,
+        blockName: "new block",
+      };
+      stompClient.send("/app/plan/2/create/timttableBlock", {}, JSON.stringify(timeTableBlockData));
+      console.log("🚀 시간표 블록 생성 메시지 전송:", timeTableBlockData);
+    }
+  </script>
+</body>
+</html>
