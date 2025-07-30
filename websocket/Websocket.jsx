@@ -4,7 +4,7 @@ import { Client } from '@stomp/stompjs';
 
 const WebSocketTest = () => {
   let stompClient = null;
-
+  const id = searchParams.get("id");
   useEffect(() => {
     const socket = new SockJS("http://localhost:8080/ws-plan");
     stompClient = new Client({
@@ -12,17 +12,37 @@ const WebSocketTest = () => {
       onConnect: (frame) => {
         console.log("✅ WebSocket 연결 완료:", frame);
 
-        stompClient.subscribe("/topic/plan/2/update/plan", (message) => {
+        stompClient.subscribe(`/topic/plan/${id}/update/plan`, (message) => {
           console.log("📩 수신된 메시지:", message.body);
           alert("수신된 메시지: " + message.body);
         });
 
-        stompClient.subscribe("/topic/plan/2/create/timetable", (message) => {
+        stompClient.subscribe(`/topic/plan/${id}/create/timetable`, (message) => {
           console.log("📩 수신된 메시지:", message.body);
           alert("수신된 메시지: " + message.body);
         });
 
-        stompClient.subscribe("/topic/plan/2/create/timetableBlock", (message) => {
+        stompClient.subscribe(`/topic/plan/${id}/update/timetable`, (message) => {
+          console.log("📩 수신된 메시지:", message.body);
+          alert("수신된 메시지: " + message.body);
+        });
+
+        stompClient.subscribe(`/topic/plan/${id}/delete/timetable`, (message) => {
+          console.log("📩 수신된 메시지:", message.body);
+          alert("수신된 메시지: " + message.body);
+        });
+
+        stompClient.subscribe(`/topic/plan/${id}/create/timetableplaceblock`, (message) => {
+          console.log("📩 수신된 메시지:", message.body);
+          alert("수신된 메시지: " + message.body);
+        });
+
+        stompClient.subscribe(`/topic/plan/${id}/update/timetableplaceblock`, (message) => {
+          console.log("📩 수신된 메시지:", message.body);
+          alert("수신된 메시지: " + message.body);
+        });
+
+        stompClient.subscribe(`/topic/plan/${id}/delete/timetableplaceblock`, (message) => {
           console.log("📩 수신된 메시지:", message.body);
           alert("수신된 메시지: " + message.body);
         });
@@ -36,7 +56,7 @@ const WebSocketTest = () => {
     };
   }, []);
 
-  const sendUpdate = () => {
+  const updatePlan = () => {
     const planData = { planName: "new plan" };
     stompClient.publish({
       destination: "/app/plan/2/update/plan",
@@ -45,7 +65,8 @@ const WebSocketTest = () => {
     console.log("🚀 메시지 전송:", planData);
   };
 
-  const timeTableCreate = () => {
+  const createPlan
+   = () => {
     const timeTableData = {
       timetableVO: {
         date: "2023-10-01",
@@ -54,7 +75,7 @@ const WebSocketTest = () => {
       },
     };
     stompClient.publish({
-      destination: "/app/plan/2/create/timetable",
+      destination: `/app/plan/${id}/create/timetable`,
       body: JSON.stringify(timeTableData),
     });
     console.log("🚀 시간표 생성 메시지 전송:", timeTableData);
@@ -66,7 +87,7 @@ const WebSocketTest = () => {
       blockName: "new block",
     };
     stompClient.publish({
-      destination: "/app/plan/2/create/timetableBlock", // 오타 수정됨 (timttable → timetable)
+      destination: `/app/plan/${id}/create/timetableBlock`,
       body: JSON.stringify(timeTableBlockData),
     });
     console.log("🚀 시간표 블록 생성 메시지 전송:", timeTableBlockData);
