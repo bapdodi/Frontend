@@ -13,7 +13,8 @@
   <button onclick="timeTableBlockCreate()">시간표 블록 생성</button>
 
   <script>
-    const socket = new SockJS("http://localhost:8080/ws-plan"); // 너의 서버 주소
+    // const socket = new SockJS("http://localhost:8080/ws-plan"); // 너의 서버 주소
+    const socket = new SockJS("https://pmserver.salmakis.online/ws-plan");
     const stompClient = Stomp.over(socket);
 
     stompClient.connect({}, function (frame) {

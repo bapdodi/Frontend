@@ -6,7 +6,7 @@ const WebSocketTest = () => {
   let stompClient = null;
   const id = searchParams.get("id");
   useEffect(() => {
-    const socket = new SockJS("http://localhost:8080/ws-plan");
+    const socket = new SockJS("http://192.168.219.134:8080/ws-plan");
     stompClient = new Client({
       webSocketFactory: () => socket,
       onConnect: (frame) => {
