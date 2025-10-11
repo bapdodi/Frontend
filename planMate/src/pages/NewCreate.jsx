@@ -1,16 +1,16 @@
-import { useState, useEffect, useReducer, useRef } from "react";
-import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
+import { useEffect, useReducer, useRef, useState } from "react";
+import SockJS from "sockjs-client";
 
+import DaySelector from "../components/Create/DaySelector";
+import PlaceRecommendations from "../components/Create/PlaceRecommendations";
+import TimeTable from "../components/Create/TimeTable";
 import Navbar from "../components/Navbar";
 import PlanInfo from "../components/NewPlanInfo";
-import DaySelector from "../components/Create/DaySelector";
-import TimeTable from "../components/Create/TimeTable";
-import PlaceRecommendations from "../components/Create/PlaceRecommendations";
 
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useApiClient } from "../assets/hooks/useApiClient";
-import { transformApiResponse, addMinutes } from "../utils/scheduleUtils";
+import { addMinutes, transformApiResponse } from "../utils/scheduleUtils";
 
 const initialPlanState = {
   planName: "",
@@ -145,7 +145,7 @@ function App() {
           stompClientRef.current = client;
 
           // 실제 구독 코드
-          client.subscribe(`/topic/plan/${id}/update/plan`, (message) => {
+          client.subscribe(`/topic/${id}/update/plan`, (message) => {
             const received = JSON.parse(message.body);
             if (JSON.stringify(planRef.current) !== JSON.stringify(received)) {
               console.log(`플랜 업데이트 수신: ${message.body}`);
@@ -154,24 +154,24 @@ function App() {
             }
           });
 
-          client.subscribe(`/topic/plan/${id}/create/timetable`, (message) => {
+          client.subscribe(`/topic/${id}/create/timetable`, (message) => {
             console.log("📩 수신된 메시지:", message.body);
             timeDispatch({ type: "create", payload: JSON.parse(message.body) });
           });
 
-          client.subscribe(`/topic/plan/${id}/update/timetable`, (message) => {
+          client.subscribe(`/topic/${id}/update/timetable`, (message) => {
             console.log("📩 수신된 메시지:", message.body);
             const received = JSON.parse(message.body);
             timeDispatch({ type: "update", payload: received.timetableDtos });
           });
 
-          client.subscribe(`/topic/plan/${id}/delete/timetable`, (message) => {
+          client.subscribe(`/topic/${id}/delete/timetable`, (message) => {
             console.log("📩 수신된 메시지:", message.body);
             timeDispatch({ type: "delete", payload: JSON.parse(message.body) });
           });
 
           client.subscribe(
-            `/topic/plan/${id}/create/timetableplaceblock`,
+            `/topic/${id}/create/timetableplaceblock`,
             (message) => {
               const msg = JSON.parse(message.body);
               console.log(clientId);
@@ -237,7 +237,7 @@ function App() {
           );
 
           client.subscribe(
-            `/topic/plan/${id}/update/timetableplaceblock`,
+            `/topic/${id}/update/timetableplaceblock`,
             (message) => {
               const msg = JSON.parse(message.body);
               if (msg.eventId === clientId.current) return;
@@ -296,7 +296,7 @@ function App() {
           );
 
           client.subscribe(
-            `/topic/plan/${id}/delete/timetableplaceblock`,
+            `/topic/${id}/delete/timetableplaceblock`,
             (message) => {
               const msg = JSON.parse(message.body);
               if (msg.eventId === clientId.current) return;
@@ -308,7 +308,7 @@ function App() {
                 //alert(`시간표 블록 생성 수신: ${message.body}`);
 
                 const received = JSON.parse(message.body).timetablePlaceBlockDto
-                  .timetablePlaceBlockId;
+                  .blockId;
 
                 setSchedule((prevSchedule) => {
                   // 모든 timetableId 키에 대해 순회하며 필터링
@@ -521,9 +521,11 @@ function App() {
     if (plan) {
       const client = stompClientRef.current;
       if (client && client.connected) {
-        const planData = plan;
+        const planData = {
+          planDto: plan
+        };
         client.publish({
-          destination: `/app/plan/${id}/update/plan`,
+          destination: `/app/${id}/update/plan`,
           body: JSON.stringify(planData),
         });
         console.log("🚀 메시지 전송:", planData);
@@ -578,8 +580,8 @@ function App() {
 
             const initialCreate = {
               timetablePlaceBlockDto: {
-                timetableId: Number(key),
-                timetablePlaceBlockId: null,
+                timeTableId: Number(key),
+                blockId: null,
                 placeCategoryId: item.categoryId,
                 placeName: item.name,
                 placeTheme: "테스트",
@@ -588,17 +590,17 @@ function App() {
                 placeLink: item.url,
                 placeId: item.placeId,
                 date: date,
-                startTime: `${item.timeSlot}:00`,
-                endTime: `${endTime}:00`,
-                xLocation: item.xlocation,
-                yLocation: item.ylocation,
+                blockStartTime: `${item.timeSlot}:00`,
+                blockEndTime: `${endTime}:00`,
+                xlocation: item.xlocation,
+                ylocation: item.ylocation,
               },
             };
 
             const client = stompClientRef.current;
             if (client && client.connected) {
               client.publish({
-                destination: `/app/plan/${id}/create/timetableplaceblock`,
+                destination: `/app/${id}/create/timetableplaceblock`,
                 body: JSON.stringify({
                   eventId: clientId.current,
                   ...initialCreate,
@@ -614,15 +616,15 @@ function App() {
 
           const initialDelete = {
             timetablePlaceBlockDto: {
-              timetablePlaceBlockId: item.timetablePlaceBlockId,
-              timetableId: Number(key),
+              blockId: item.timetablePlaceBlockId,
+              timeTableId: Number(key),
             },
           };
 
           const client = stompClientRef.current;
           if (client && client.connected) {
             client.publish({
-              destination: `/app/plan/${id}/delete/timetableplaceblock`,
+              destination: `/app/${id}/delete/timetableplaceblock`,
               body: JSON.stringify({
                 eventId: clientId.current,
                 ...initialDelete,
@@ -641,26 +643,26 @@ function App() {
 
             const initialUpdate = {
               timetablePlaceBlockDto: {
-                timetableId: Number(key),
-                timetablePlaceBlockId: item.timetablePlaceBlockId,
-                placeCategoryId: item.categoryId,
+                timeTableId: Number(key),
+                blockId: item.timetablePlaceBlockId,
+                placeCategory: item.categoryId,
                 placeName: item.name,
                 placeTheme: "테스트",
                 placeRating: item.rating,
                 placeAddress: item.formatted_address,
                 placeLink: item.url,
                 date: date,
-                startTime: `${item.timeSlot}:00`,
-                endTime: `${endTime}:00`,
-                xLocation: item.xlocation,
-                yLocation: item.ylocation,
+                blockStartTime: `${item.timeSlot}:00`,
+                blockEndTime: `${endTime}:00`,
+                xlocation: item.xlocation,
+                ylocation: item.ylocation,
               },
             };
 
             const client = stompClientRef.current;
             if (client && client.connected) {
               client.publish({
-                destination: `/app/plan/${id}/update/timetableplaceblock`,
+                destination: `/app/${id}/update/timetableplaceblock`,
                 body: JSON.stringify({
                   eventId: clientId.current,
                   ...initialUpdate,
@@ -733,31 +735,6 @@ function App() {
     );
   }
 
-  const balsa = () => {
-    const client = stompClientRef.current;
-    const yesi = {
-      timetablePlaceBlockDto: {
-        timetableId: 16495,
-        timetablePlaceBlockId: null,
-        placeCategoryId: 2,
-        placeName: "경복궁",
-        placeTheme: "역사",
-        placeRating: 4.7,
-        placeAddress: "서울 종로구 사직로 161",
-        placeLink: "https://example.com/경복궁",
-        date: "2025-08-22",
-        startTime: "14:00:00",
-        endTime: "16:30:00",
-        xLocation: 126.9769,
-        yLocation: 37.5796,
-      },
-    };
-    client.publish({
-      destination: `/app/plan/${id}/create/timetableplaceblock`,
-      body: JSON.stringify(yesi),
-    });
-    console.log("발사성공!");
-  };
 
   return (
     <div className="min-h-screen font-pretendard">

@@ -11,18 +11,21 @@ export const transformApiResponse = (apiResponse) => {
   // placeBlocks를 순회하면서 데이터 변환
   placeBlocks.forEach((place) => {
     // startTime과 endTime으로부터 duration 계산 (15분 단위)
-    const startTime = new Date(`2000-01-01T${place.startTime}`);
+    const startTimeField = place.blockStartTime || place.startTime;
+    const endTimeField = place.blockEndTime || place.endTime;
+    
+    const startTime = new Date(`2000-01-01T${startTimeField}`);
     let endTime;
-    if (place.endTime === "23:59:59") {
+    if (endTimeField === "23:59:59") {
       endTime = new Date(`2000-01-01T24:00:00`);
     } else {
-      endTime = new Date(`2000-01-01T${place.endTime}`);
+      endTime = new Date(`2000-01-01T${endTimeField}`);
     }
     const durationMinutes = (endTime - startTime) / (1000 * 60);
     const duration = Math.round(durationMinutes / 15);
 
     // timeSlot을 HH:MM 형태로 변환
-    const timeSlot = place.startTime.substring(0, 5);
+    const timeSlot = startTimeField.substring(0, 5);
 
     // Google Maps URL에서 placeId 추출
     const urlMatch = place.placeLink.match(/place_id:([^&]+)/);
@@ -30,27 +33,22 @@ export const transformApiResponse = (apiResponse) => {
 
     // categoryId에 따른 iconUrl 설정
     let iconUrl;
-    if (place.placeCategoryId) {
-      if (place.placeCategoryId === 0) {
+    const categoryId = place.placeCategory ?? place.placeCategoryId;
+    if (categoryId !== undefined) {
+      if (categoryId === 0) {
         iconUrl = "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/park-71.png";
-      } else if (place.placeCategoryId === 1) {
+      } else if (categoryId === 1) {
         iconUrl = "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/lodging-71.png";
       } else {
         iconUrl = "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/generic_business-71.png";
       }
     } else {
-      if (place.placeCategory === 0) {
-        iconUrl = "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/park-71.png";
-      } else if (place.placeCategory === 1) {
-        iconUrl = "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/lodging-71.png";
-      } else {
-        iconUrl = "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/generic_business-71.png";
-      }
+      iconUrl = "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/generic_business-71.png";
     }
 
     // 변환된 객체 생성
     const transformedPlace = {
-      timetablePlaceBlockId: place.timetablePlaceBlockId ?? place.blockId,
+      timetablePlaceBlockId: place.blockId ?? place.timetablePlaceBlockId,
       placeId: placeId,
       url: place.placeLink,
       name: place.placeName,
@@ -58,15 +56,15 @@ export const transformApiResponse = (apiResponse) => {
       rating: place.placeRating,
       iconUrl: iconUrl,
       categoryId: place.placeCategory ?? place.placeCategoryId,
-      xlocation: place.xLocation ?? place.xlocation,
-      ylocation: place.yLocation ?? place.ylocation,
+      xlocation: place.xlocation ?? place.xLocation,
+      ylocation: place.ylocation ?? place.yLocation,
       timeSlot: timeSlot,
       duration: duration,
     };
 
     // 해당하는 timetableId를 찾아서 데이터 추가
     // const placeIndex = placeBlocks.indexOf(place);
-    const targetTimetableId = place.timetableId ?? place.timeTableId;
+    const targetTimetableId = place.timeTableId ?? place.timetableId;
 
     // if (placeIndex < 4) {
     //   targetTimetableId = timetables[0]?.timetableId || 78;
