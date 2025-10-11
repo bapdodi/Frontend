@@ -43,7 +43,7 @@ function timetableReducer(state, action) {
     case "create":
       let newState = [...state];
 
-      action.payload.timetableVOs.forEach((newItem) => {
+      action.payload.timetableDtos.forEach((newItem) => {
         const index = newState.findIndex((item) => item.date === newItem.date);
         if (index !== -1) {
           // 날짜가 같고 timetableId가 다르면 교체
@@ -63,8 +63,8 @@ function timetableReducer(state, action) {
     case "update":
       return [...action.payload];
     case "delete":
-      const idsToDelete = action.payload.timetableVOs.map(
-        (vo) => vo.timetableId
+      const idsToDelete = action.payload.timetableDtos.map(
+        (dto) => dto.timetableId
       );
       return state.filter((item) => !idsToDelete.includes(item.timetableId));
     default:
@@ -162,7 +162,7 @@ function App() {
           client.subscribe(`/topic/plan/${id}/update/timetable`, (message) => {
             console.log("📩 수신된 메시지:", message.body);
             const received = JSON.parse(message.body);
-            timeDispatch({ type: "update", payload: received.timetableVOs });
+            timeDispatch({ type: "update", payload: received.timetableDtos });
           });
 
           client.subscribe(`/topic/plan/${id}/delete/timetable`, (message) => {
@@ -186,7 +186,7 @@ function App() {
 
                 const converted = {
                   timetables: timetablesRef.current,
-                  placeBlocks: [received.timetablePlaceBlockVO],
+                  placeBlocks: [received.timetablePlaceBlockDto],
                 };
 
                 console.log(converted);
@@ -252,7 +252,7 @@ function App() {
 
                 const converted = {
                   timetables: timetablesRef.current,
-                  placeBlocks: [received.timetablePlaceBlockVO],
+                  placeBlocks: [received.timetablePlaceBlockDto],
                 };
                 console.log(converted);
                 const result = transformApiResponse(converted);
@@ -307,7 +307,7 @@ function App() {
                 console.log("📩 수신된 메시지:", message.body);
                 //alert(`시간표 블록 생성 수신: ${message.body}`);
 
-                const received = JSON.parse(message.body).timetablePlaceBlockVO
+                const received = JSON.parse(message.body).timetablePlaceBlockDto
                   .timetablePlaceBlockId;
 
                 setSchedule((prevSchedule) => {
@@ -577,7 +577,7 @@ function App() {
             const endTime = addMinutes(item.timeSlot, item.duration * 15);
 
             const initialCreate = {
-              timetablePlaceBlockVO: {
+              timetablePlaceBlockDto: {
                 timetableId: Number(key),
                 timetablePlaceBlockId: null,
                 placeCategoryId: item.categoryId,
@@ -613,7 +613,7 @@ function App() {
           const item = removed[0];
 
           const initialDelete = {
-            timetablePlaceBlockVO: {
+            timetablePlaceBlockDto: {
               timetablePlaceBlockId: item.timetablePlaceBlockId,
               timetableId: Number(key),
             },
@@ -640,7 +640,7 @@ function App() {
             const endTime = addMinutes(item.timeSlot, item.duration * 15);
 
             const initialUpdate = {
-              timetablePlaceBlockVO: {
+              timetablePlaceBlockDto: {
                 timetableId: Number(key),
                 timetablePlaceBlockId: item.timetablePlaceBlockId,
                 placeCategoryId: item.categoryId,
@@ -736,7 +736,7 @@ function App() {
   const balsa = () => {
     const client = stompClientRef.current;
     const yesi = {
-      timetablePlaceBlockVO: {
+      timetablePlaceBlockDto: {
         timetableId: 16495,
         timetablePlaceBlockId: null,
         placeCategoryId: 2,
