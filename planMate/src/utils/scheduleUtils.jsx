@@ -5,7 +5,7 @@ export const transformApiResponse = (apiResponse) => {
 
   // 각 timetable에 대해 빈 배열 초기화
   timetables.forEach((timetable) => {
-    result[timetable.timetableId] = [];
+    result[timetable.timeTableId] = [];
   });
 
   // placeBlocks를 순회하면서 데이터 변환
@@ -56,8 +56,8 @@ export const transformApiResponse = (apiResponse) => {
       rating: place.placeRating,
       iconUrl: iconUrl,
       categoryId: place.placeCategory ?? place.placeCategoryId,
-      xlocation: place.xlocation ?? place.xLocation,
-      ylocation: place.ylocation ?? place.yLocation,
+      xLocation: place.xLocation ?? place.xlocation,
+      yLocation: place.yLocation ?? place.ylocation,
       timeSlot: timeSlot,
       duration: duration,
     };
@@ -78,7 +78,6 @@ export const transformApiResponse = (apiResponse) => {
       result[targetTimetableId].push(transformedPlace);
     }
   });
-  console.log(result)
   return result;
 };
 

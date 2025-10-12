@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDragAndDrop, useTimeSlots } from "../../hooks/useScheduleLogic";
 import ScheduleItem from "./ScheduleItem";
-import { useTimeSlots, useDragAndDrop } from "../../hooks/useScheduleLogic";
 
 const TimeTable = ({ 
   selectedDay, 
@@ -12,7 +12,6 @@ const TimeTable = ({
 }) => {
   const [draggedItem, setDraggedItem] = useState(null);
   const [draggedFromSchedule, setDraggedFromSchedule] = useState(null);
-
 
   const timeSlots = useTimeSlots(selectedDay, timetables);
   const {
@@ -38,10 +37,10 @@ const TimeTable = ({
     if (!selectedDay || !timetables.length) return "20:00";
 
     const currentTimetable = timetables.find(
-      (t) => t.timetableId === selectedDay
+      (t) => t.timeTableId === selectedDay
     );
-    return currentTimetable
-      ? currentTimetable.endTime.substring(0, 5)
+    return currentTimetable && currentTimetable.timeTableEndTime
+      ? currentTimetable.timeTableEndTime.substring(0, 5)
       : "20:00";
   };
 

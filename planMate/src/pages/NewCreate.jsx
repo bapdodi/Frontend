@@ -43,11 +43,11 @@ function timetableReducer(state, action) {
     case "create":
       let newState = [...state];
 
-      action.payload.timetableDtos.forEach((newItem) => {
+      action.payload.timeTableDtos.forEach((newItem) => {
         const index = newState.findIndex((item) => item.date === newItem.date);
         if (index !== -1) {
-          // 날짜가 같고 timetableId가 다르면 교체
-          if (newState[index].timetableId !== newItem.timetableId) {
+          // 날짜가 같고 timeTableId가 다르면 교체
+          if (newState[index].timeTableId !== newItem.timeTableId) {
             newState[index] = newItem;
           }
         } else {
@@ -58,15 +58,14 @@ function timetableReducer(state, action) {
 
       // date 기준 오름차순 정렬
       newState.sort((a, b) => new Date(a.date) - new Date(b.date));
-      console.log(newState);
       return newState;
     case "update":
       return [...action.payload];
     case "delete":
-      const idsToDelete = action.payload.timetableDtos.map(
-        (dto) => dto.timetableId
+      const idsToDelete = action.payload.timeTableDtos.map(
+        (dto) => dto.timeTableId
       );
-      return state.filter((item) => !idsToDelete.includes(item.timetableId));
+      return state.filter((item) => !idsToDelete.includes(item.timeTableId));
     default:
       return state;
   }
@@ -98,21 +97,10 @@ function App() {
     검색: [],
   });
 
-  useEffect(() => {
-    console.log(places);
-  }, [places]);
   const { get, post, patch, isAuthenticated } = useApiClient();
 
   useEffect(() => {
-    console.log(transformedData);
-  }, [transformedData]);
-
-  useEffect(() => {
     timetablesRef.current = timetables;
-  }, [timetables]);
-
-  useEffect(() => {
-    console.log(timetables);
   }, [timetables]);
 
   const lastMessageRef = useRef(null);
@@ -133,14 +121,11 @@ function App() {
     const SERVER_URL = `${BASE_URL}/ws-plan?token=${encodeURIComponent(token)}`;
 
     const connectWebSocket = () => {
-      console.log("🔄 WebSocket 연결 시도 중...", SERVER_URL);
-
       // 실제 연결을 위한 코드 (라이브러리 설치 후 주석 해제)
       const socket = new SockJS(SERVER_URL);
       const client = new Client({
         webSocketFactory: () => socket,
         onConnect: (frame) => {
-          console.log("✅ WebSocket 연결 완료:", frame);
           setIsConnected(true);
           stompClientRef.current = client;
 
@@ -148,25 +133,24 @@ function App() {
           client.subscribe(`/topic/${id}/update/plan`, (message) => {
             const received = JSON.parse(message.body);
             if (JSON.stringify(planRef.current) !== JSON.stringify(received)) {
-              console.log(`플랜 업데이트 수신: ${message.body}`);
-              //alert(`플랜 업데이트 수신: ${message.body}`);
+              console.log(`📩 플랜 업데이트 수신: ${message.body}`);
               planDispatch({ type: "SET_ALL", payload: received });
             }
           });
 
           client.subscribe(`/topic/${id}/create/timetable`, (message) => {
-            console.log("📩 수신된 메시지:", message.body);
+            console.log("📩 타임테이블 생성 수신:", message.body);
             timeDispatch({ type: "create", payload: JSON.parse(message.body) });
           });
 
           client.subscribe(`/topic/${id}/update/timetable`, (message) => {
-            console.log("📩 수신된 메시지:", message.body);
+            console.log("📩 타임테이블 업데이트 수신:", message.body);
             const received = JSON.parse(message.body);
-            timeDispatch({ type: "update", payload: received.timetableDtos });
+            timeDispatch({ type: "update", payload: received.timeTableDtos });
           });
 
           client.subscribe(`/topic/${id}/delete/timetable`, (message) => {
-            console.log("📩 수신된 메시지:", message.body);
+            console.log("📩 타임테이블 삭제 수신:", message.body);
             timeDispatch({ type: "delete", payload: JSON.parse(message.body) });
           });
 
@@ -174,29 +158,24 @@ function App() {
             `/topic/${id}/create/timetableplaceblock`,
             (message) => {
               const msg = JSON.parse(message.body);
-              console.log(clientId);
               if (msg.eventId === clientId.current) return;
               if (
                 JSON.stringify(message.body) !==
                 JSON.stringify(lastMessageRef.current)
               ) {
-                console.log("📩 수신된 메시지:", message.body);
-                //alert(`시간표 블록 생성 수신: ${message.body}`);
+                console.log("📩 블록 생성 수신:", message.body);
                 const received = JSON.parse(message.body);
 
                 const converted = {
                   timetables: timetablesRef.current,
-                  placeBlocks: [received.timetablePlaceBlockDto],
+                  placeBlocks: [received.timeTablePlaceBlockDto],
                 };
 
-                console.log(converted);
                 const result = transformApiResponse(converted);
-                console.log(result);
 
                 const findId = findSameById(setTransformedData, result);
 
                 if (findId) {
-                  console.log("같은 아이디가 있어 리턴함");
                   return;
                 }
                 noUpdate.current = true;
@@ -228,7 +207,6 @@ function App() {
 
                     updated[key] = [...mergedItems, ...newItemsToAdd];
                   });
-                  console.log(updated);
                   return updated;
                 });
               }
@@ -245,16 +223,13 @@ function App() {
                 JSON.stringify(message.body) !==
                 JSON.stringify(lastMessageRef.current)
               ) {
-                console.log("📩 수신된 메시지:", message.body);
-                //alert(`시간표 블록 생성 수신: ${message.body}`);
-
+                console.log("📩 블록 업데이트 수신:", message.body);
                 const received = JSON.parse(message.body);
 
                 const converted = {
                   timetables: timetablesRef.current,
-                  placeBlocks: [received.timetablePlaceBlockDto],
+                  placeBlocks: [received.timeTablePlaceBlockDto],
                 };
-                console.log(converted);
                 const result = transformApiResponse(converted);
 
                 setSchedule((prev) => {
@@ -304,10 +279,8 @@ function App() {
                 JSON.stringify(message.body) !==
                 JSON.stringify(lastMessageRef.current)
               ) {
-                console.log("📩 수신된 메시지:", message.body);
-                //alert(`시간표 블록 생성 수신: ${message.body}`);
-
-                const received = JSON.parse(message.body).timetablePlaceBlockDto
+                console.log("📩 블록 삭제 수신:", message.body);
+                const received = JSON.parse(message.body).timeTablePlaceBlockDto
                   .blockId;
 
                 setSchedule((prevSchedule) => {
@@ -335,7 +308,6 @@ function App() {
           client.deactivate();
         },
         onWebSocketClose: () => {
-          console.log("🔌 WebSocket 연결 종료");
           setIsConnected(false);
           client.deactivate();
         },
@@ -349,7 +321,6 @@ function App() {
     // 정리 함수
     return () => {
       if (stompClientRef.current) {
-        console.log("🔌 WebSocket 연결 해제");
         setIsConnected(false);
         stompClientRef.current.deactivate();
       }
@@ -363,19 +334,30 @@ function App() {
     const fetchPlanData = async () => {
       if (id && isAuthenticated()) {
         try {
+          console.log("=== getPlan 호출 시작 ===");
+          console.log("요청 URL:", `${BASE_URL}/api/plan/${id}`);
+          
           const planData = await get(`${BASE_URL}/api/plan/${id}`);
+          
+          console.log("=== getPlan 응답 데이터 ===");
+          console.log("전체 응답:", planData);
+          console.log("planFrame:", planData.planFrame);
+          console.log("timetables:", planData.timetables);
+          console.log("placeBlocks:", planData.placeBlocks);
+          console.log("timetables 개수:", planData.timetables?.length || 0);
+          console.log("placeBlocks 개수:", planData.placeBlocks?.length || 0);
+          console.log("userDayIndexes:", planData.userDayIndexes);
+          
           const planFrame = planData.planFrame;
 
           setData(planData);
-          console.log("똥", planData);
 
           planDispatch({ type: "SET_ALL", payload: planFrame });
 
           if (planData.timetables) {
-            //setTimetables(planData.timetables);
             timeDispatch({ type: "update", payload: planData.timetables });
             if (planData.timetables.length > 0) {
-              setSelectedDay(planData.timetables[0].timetableId);
+              setSelectedDay(planData.timetables[0].timeTableId);
             }
           }
 
@@ -410,10 +392,19 @@ function App() {
             post(`${BASE_URL}/api/plan/${id}/restaurant`),
           ]);
 
+          // xlocation/ylocation을 xLocation/yLocation으로 변환
+          const normalizeCoordinates = (places) => {
+            return places?.map(place => ({
+              ...place,
+              xLocation: place.xLocation ?? place.xlocation,
+              yLocation: place.yLocation ?? place.ylocation,
+            })) || [];
+          };
+
           setPlaces({
-            관광지: tour.places,
-            숙소: lodging.places,
-            식당: restaurant.places,
+            관광지: normalizeCoordinates(tour.places),
+            숙소: normalizeCoordinates(lodging.places),
+            식당: normalizeCoordinates(restaurant.places),
           });
         } catch (err) {
           console.error("추천 장소를 가져오는데 실패했습니다:", err);
@@ -433,16 +424,16 @@ function App() {
     if (firstSchedule.current) {
       if (transformedData) {
         setSchedule(transformedData);
-        // firstScheduleRef.current(transformedData);
+        firstSchedule.current = false;
       } else if (timetables.length > 0) {
         const initialSchedule = {};
         timetables.forEach((timetable) => {
-          initialSchedule[timetable.timetableId] = [];
+          initialSchedule[timetable.timeTableId] = [];
         });
         setSchedule(initialSchedule);
+        firstSchedule.current = false;
       }
     }
-    firstSchedule.current = false;
   }, [timetables, transformedData]);
 
   // 스케줄 업데이트 함수
@@ -477,8 +468,8 @@ function App() {
           startTime: `${startTime}:00`,
           endTime: `${endTime}:00`,
           date: date,
-          xLocation: place.xlocation,
-          yLocation: place.ylocation,
+          xLocation: place.xLocation,
+          yLocation: place.yLocation,
           placeLink: place.url,
           placeTheme: "역사",
         };
@@ -513,7 +504,7 @@ function App() {
   };
 
   const getDateById = (id) => {
-    const matched = timetables.find((t) => t.timetableId === id);
+    const matched = timetables.find((t) => t.timeTableId === id);
     return matched?.date ?? null;
   };
 
@@ -528,7 +519,7 @@ function App() {
           destination: `/app/${id}/update/plan`,
           body: JSON.stringify(planData),
         });
-        console.log("🚀 메시지 전송:", planData);
+        console.log("🚀 플랜 업데이트 전송:", planData);
       }
     }
   }, [plan]);
@@ -537,8 +528,6 @@ function App() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      console.log(schedule);
-
       const prevSchedule = prevScheduleRef.current;
       const newSchedule = schedule;
 
@@ -571,15 +560,13 @@ function App() {
         });
 
         if (added.length > 0) {
-          console.log(`Key ${key} - Added:`, added[0]);
-
           const item = added[0];
           if (!item.timetablePlaceBlockId) {
             const date = getDateById(Number(key));
             const endTime = addMinutes(item.timeSlot, item.duration * 15);
 
             const initialCreate = {
-              timetablePlaceBlockDto: {
+              timeTablePlaceBlockDto: {
                 timeTableId: Number(key),
                 blockId: null,
                 placeCategoryId: item.categoryId,
@@ -592,8 +579,8 @@ function App() {
                 date: date,
                 blockStartTime: `${item.timeSlot}:00`,
                 blockEndTime: `${endTime}:00`,
-                xlocation: item.xlocation,
-                ylocation: item.ylocation,
+                xLocation: item.xLocation || item.geometry?.location?.lng || 0,
+                yLocation: item.yLocation || item.geometry?.location?.lat || 0,
               },
             };
 
@@ -606,16 +593,15 @@ function App() {
                   ...initialCreate,
                 }),
               });
-              console.log("🚀 메시지 전송:", initialCreate);
+              console.log("🚀 블록 생성 전송:", initialCreate);
             }
           }
         }
         if (removed.length > 0) {
-          console.log(`Key ${key} - Removed:`, removed);
           const item = removed[0];
 
           const initialDelete = {
-            timetablePlaceBlockDto: {
+            timeTablePlaceBlockDto: {
               blockId: item.timetablePlaceBlockId,
               timeTableId: Number(key),
             },
@@ -630,19 +616,17 @@ function App() {
                 ...initialDelete,
               }),
             });
-            console.log("🚀 메시지 전송:", initialDelete);
+            console.log("🚀 블록 삭제 전송:", initialDelete);
           }
         }
         if (changed.length > 0) {
-          console.log(`Key ${key} - Changed:`, changed);
-
           if (!noUpdate.current) {
             const item = changed[0];
             const date = getDateById(Number(key));
             const endTime = addMinutes(item.timeSlot, item.duration * 15);
 
             const initialUpdate = {
-              timetablePlaceBlockDto: {
+              timeTablePlaceBlockDto: {
                 timeTableId: Number(key),
                 blockId: item.timetablePlaceBlockId,
                 placeCategory: item.categoryId,
@@ -654,13 +638,14 @@ function App() {
                 date: date,
                 blockStartTime: `${item.timeSlot}:00`,
                 blockEndTime: `${endTime}:00`,
-                xlocation: item.xlocation,
-                ylocation: item.ylocation,
+                xLocation: item.xLocation || item.geometry?.location?.lng || 0,
+                yLocation: item.yLocation || item.geometry?.location?.lat || 0,
               },
             };
 
             const client = stompClientRef.current;
             if (client && client.connected) {
+              console.log("🚀 블록 업데이트 전송:", initialUpdate);
               client.publish({
                 destination: `/app/${id}/update/timetableplaceblock`,
                 body: JSON.stringify({
@@ -668,7 +653,6 @@ function App() {
                   ...initialUpdate,
                 }),
               });
-              console.log("🚀 메시지 전송:", initialUpdate);
             }
           } else {
             noUpdate.current = false;

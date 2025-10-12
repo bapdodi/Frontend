@@ -1,22 +1,26 @@
 import { useMemo } from "react";
-import { 
-  checkTimeOverlap, 
-  findNearestAvailableTime, 
-  getCategoryByIconUrl 
+import {
+    checkTimeOverlap,
+    findNearestAvailableTime
 } from "../utils/scheduleUtils";
 
 // 시간 슬롯 계산 훅
 export const useTimeSlots = (selectedDay, timetables) => {
   return useMemo(() => {
-    if (!selectedDay || !timetables.length) return [];
+    if (!selectedDay || !timetables.length) {
+      return [];
+    }
 
     const currentTimetable = timetables.find(
-      (t) => t.timetableId === selectedDay
+      (t) => t.timeTableId === selectedDay
     );
-    if (!currentTimetable) return [];
+    
+    if (!currentTimetable) {
+      return [];
+    }
 
-    const startHour = parseInt(currentTimetable.startTime.split(":")[0]);
-    const endHour = parseInt(currentTimetable.endTime.split(":")[0]);
+    const startHour = parseInt(currentTimetable.timeTableStartTime.split(":")[0]);
+    const endHour = parseInt(currentTimetable.timeTableEndTime.split(":")[0]);
 
     const timeSlots = [];
     for (let hour = startHour; hour < endHour; hour++) {
@@ -28,6 +32,7 @@ export const useTimeSlots = (selectedDay, timetables) => {
         );
       }
     }
+    
     return timeSlots;
   }, [selectedDay, timetables]);
 };

@@ -1,8 +1,7 @@
+import { faCalendarDays } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCalendarDays, faCircleInfo } from "@fortawesome/free-solid-svg-icons";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
-import TimeTable from "./TimeTable";
 
 const DaySelector = ({ timetables, timeDispatch, selectedDay, onDaySelect, stompClientRef, id, schedule }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,22 +14,18 @@ const DaySelector = ({ timetables, timeDispatch, selectedDay, onDaySelect, stomp
     return `${month}.${day}.`;
   };
 
-  useEffect(() => {
-    console.log(timetables);
-  }, [timetables])
-
   return (
     <>
       <div className="flex flex-col space-y-4">
         {timetables.map((timetable, index) => (
           <button
-            key={timetable.timetableId}
+            key={timetable.timeTableId}
             className={`px-4 py-4 rounded-lg ${
-              selectedDay === timetable.timetableId
+              selectedDay === timetable.timeTableId
                 ? "bg-main text-white"
                 : "bg-white text-gray-700 border border-gray-300"
             }`}
-            onClick={() => onDaySelect(timetable.timetableId)}
+            onClick={() => onDaySelect(timetable.timeTableId)}
           >
             <div className="text-xl font-semibold">
               {index+1}일차
@@ -64,11 +59,10 @@ const DaySelector = ({ timetables, timeDispatch, selectedDay, onDaySelect, stomp
 
 const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, selectedDay, onDaySelect, schedule }) => {
   const [newTime, setNewTime] = useState(timetables);
-  console.log(schedule)
 
-  const [create, setCreate] = useState({"timetableVOs": []});
-  const [update, setUpdate] = useState({"timetableVOs": []});
-  const [deleteTime, setDelete] = useState({"timetableVOs": []});
+  const [create, setCreate] = useState({"timeTableDtos": []});
+  const [update, setUpdate] = useState({"timeTableDtos": []});
+  const [deleteTime, setDelete] = useState({"timeTableDtos": []});
 
   const times = [];
   for (let h = 0; h < 25; h++) {
@@ -95,38 +89,38 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
 
       setUpdate(prev => ({
         ...prev,
-        timetableVOs: updatedTimes
+        timeTableDtos: updatedTimes
       }));
     }
   };
 
-  const updateTime = (e, index, timetableId, se) => {
+  const updateTime = (e, index, timeTableId, se) => {
     const baseTime = e.target.value;
     let updatedTimes = null;
 
     if (se == "start") {
       updatedTimes = newTime.map((item, i) =>
-        i === index ? { ...item, startTime: baseTime } : item
+        i === index ? { ...item, timeTableStartTime: baseTime } : item
       )
     } else if (se == "end") {
       updatedTimes = newTime.map((item, i) =>
-        i === index ? { ...item, endTime: baseTime } : item
+        i === index ? { ...item, timeTableEndTime: baseTime } : item
       )
     }
 
     setNewTime(updatedTimes);
 
-    if (timetableId < 1 && timetableId >= 0) {
+    if (timeTableId < 1 && timeTableId >= 0) {
       setCreate((prev) => ({
         ...prev, // 기존 객체 속성 유지
-        timetableVOs: prev.timetableVOs.map((item) =>
-          item.timetableId === timetableId ? updatedTimes[index] : item
+        timeTableDtos: prev.timeTableDtos.map((item) =>
+          item.timeTableId === timeTableId ? updatedTimes[index] : item
         )
       }));
     } else {
       setUpdate(prev => ({
         ...prev,
-        timetableVOs: updatedTimes
+        timeTableDtos: updatedTimes
       }));
     }
   }
@@ -139,36 +133,28 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
     const newId = Math.random()
 
     const timetableVO = {
-      timetableId: newId,
+      timeTableId: newId,
       date: newDate,
-      startTime: "09:00:00",
-      endTime: "20:00:00",
+      timeTableStartTime: "09:00:00",
+      timeTableEndTime: "20:00:00",
+      planId: parseInt(id),  // planId 추가
     }
 
     setNewTime((prev) => [...prev, timetableVO])
 
     setCreate((prev) => ({
       ...prev,
-      timetableVOs: [
-        ...prev.timetableVOs,
+      timeTableDtos: [
+        ...prev.timeTableDtos,
         timetableVO
       ]
     }))
 
     setDelete(prev => ({
       ...prev,
-      timetableVOs: prev.timetableVOs.filter(item => item.timetableId !== newId)
+      timeTableDtos: prev.timeTableDtos.filter(item => item.timeTableId !== newId)
     }));
   }
-
-  useEffect(() => {
-    console.log(create)
-    console.log(deleteTime)
-  }, [create, deleteTime])
-
-  useEffect(() => {
-    console.log(newTime)
-  }, [newTime])
 
   const deleteDay = () => {
     setNewTime((prev) => {
@@ -179,14 +165,14 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
       
       setCreate(prev => ({
         ...prev,
-        timetableVOs: prev.timetableVOs.filter(item => item.timetableId !== lastElement.timetableId)
+        timeTableDtos: prev.timeTableDtos.filter(item => item.timeTableId !== lastElement.timeTableId)
       }));
 
       setDelete((prev2) => ({
         ...prev2,
-        timetableVOs: [
-          ...prev2.timetableVOs,
-          { timetableId: lastElement.timetableId }
+        timeTableDtos: [
+          ...prev2.timeTableDtos,
+          { timeTableId: lastElement.timeTableId }
         ]
       }))
 
@@ -200,12 +186,12 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
       return h * 60 + m;
     };
 
-    return newTime.some(({ timetableId, startTime, endTime }) => {
-      const places = schedule[timetableId];
+    return newTime.some(({ timeTableId, timeTableStartTime, timeTableEndTime }) => {
+      const places = schedule[timeTableId];
       if (!places || places.length === 0) return false;
 
-      const startMin = toMinutes(startTime);
-      const endMin = toMinutes(endTime);
+      const startMin = toMinutes(timeTableStartTime);
+      const endMin = toMinutes(timeTableEndTime);
 
       return places.some((place) => {
         const placeStartMin = toMinutes(place.timeSlot);
@@ -216,7 +202,7 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
   }
 
   const handleComfirm = () => {
-    const isInvalid = newTime.some(item => item.startTime >= item.endTime);
+    const isInvalid = newTime.some(item => item.timeTableStartTime >= item.timeTableEndTime);
     
     if (isInvalid) {
       alert("시작 시간이 종료 시간과 같거나 큰 항목이 있습니다.");
@@ -231,38 +217,40 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
     const client = stompClientRef.current;
 
     if (client && client.connected) {
-      if (create.timetableVOs && create.timetableVOs.length > 0) {
+      if (create.timeTableDtos && create.timeTableDtos.length > 0) {
+        console.log("🚀 타임테이블 생성 전송:", create);
         client.publish({
-          destination: `/app/plan/${id}/create/timetable`,
+          destination: `/app/${id}/create/timetable`,
           body: JSON.stringify(create),
         });
-        console.log("🚀 메시지 전송:", create);
       }
       
-      if (update.timetableVOs && update.timetableVOs.length > 0) {
+      if (update.timeTableDtos && update.timeTableDtos.length > 0) {
+        console.log("🚀 타임테이블 업데이트 전송:", update);
         client.publish({
-          destination: `/app/plan/${id}/update/timetable`,
+          destination: `/app/${id}/update/timetable`,
           body: JSON.stringify(update),
         });
-        console.log("🚀 메시지 전송:", update);
       }
       
-      if (deleteTime.timetableVOs && deleteTime.timetableVOs.length > 0) {
+      if (deleteTime.timeTableDtos && deleteTime.timeTableDtos.length > 0) {
+        console.log("🚀 타임테이블 삭제 전송:", deleteTime);
         client.publish({
-          destination: `/app/plan/${id}/delete/timetable`,
+          destination: `/app/${id}/delete/timetable`,
           body: JSON.stringify(deleteTime),
         });
-        console.log("🚀 메시지 전송:", deleteTime);
       }
       
       timeDispatch({type: "update", payload: newTime});
       
-      const dateId = newTime.map((t) => t.timetableId)
+      const dateId = newTime.map((t) => t.timeTableId)
       if (!dateId.includes(selectedDay)) {
         onDaySelect(dateId[dateId.length - 1]);
       }
 
       setIsModalOpen(false);
+    } else {
+      console.error("❌ WebSocket이 연결되지 않았습니다.");
     }
   }
 
@@ -285,7 +273,7 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
               if (index == 0) {
                 return (
                   <div 
-                    key={timetable.timetableId}
+                    key={timetable.timeTableId}
                     className="space-x-3 py-2 grid grid-cols-[1fr_3fr_3fr_3fr] gap-4 items-center"
                   >
                     <div>{index+1}일차</div>
@@ -296,8 +284,8 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
                       onChange={updateDate}
                     />
                     <select
-                      value={timetable.startTime}
-                      onChange={(e) => updateTime(e, index, timetable.timetableId, "start")}
+                      value={timetable.timeTableStartTime}
+                      onChange={(e) => updateTime(e, index, timetable.timeTableId, "start")}
                       className="border rounded-lg px-2 h-11"
                     >
                       {times.map((t) => (
@@ -307,8 +295,8 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
                       ))}
                     </select>
                     <select
-                      value={timetable.endTime}
-                      onChange={(e) => updateTime(e, index, timetable.timetableId, "end")}
+                      value={timetable.timeTableEndTime}
+                      onChange={(e) => updateTime(e, index, timetable.timeTableId, "end")}
                       className="border rounded-lg px-2 h-11"
                     >
                       {times.map((t) => (
@@ -322,14 +310,14 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
               } else {
                 return (
                   <div 
-                    key={timetable.timetableId}
+                    key={timetable.timeTableId}
                     className="space-x-3 py-2 grid grid-cols-[1fr_3fr_3fr_3fr] gap-4 items-center"
                   >
                     <div>{index+1}일차</div>
                     <div>{timetable.date}</div>
                     <select
-                      value={timetable.startTime}
-                      onChange={(e) => updateTime(e, index, timetable.timetableId, "start")}
+                      value={timetable.timeTableStartTime}
+                      onChange={(e) => updateTime(e, index, timetable.timeTableId, "start")}
                       className="border rounded-lg px-2 h-11"
                     >
                       {times.map((t) => (
@@ -339,8 +327,8 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
                       ))}
                     </select>
                     <select
-                      value={timetable.endTime}
-                      onChange={(e) => updateTime(e, index, timetable.timetableId, "end")}
+                      value={timetable.timeTableEndTime}
+                      onChange={(e) => updateTime(e, index, timetable.timeTableId, "end")}
                       className="border rounded-lg px-2 h-11"
                     >
                       {times.map((t) => (

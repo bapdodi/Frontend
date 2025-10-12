@@ -1,15 +1,15 @@
 // useReducer로 바꾸기 위한 컴포넌트입니다.
 
-import { useState, useEffect, useRef } from "react";
-import TransportModal from "./TransportModal";
-import PersonCountModal from "./HomePerson";
+import { useEffect, useRef, useState } from "react";
+import { Map, MapMarker, Polyline } from "react-kakao-maps-sdk";
+import { useNavigate } from 'react-router-dom';
+import { useApiClient } from "../assets/hooks/useApiClient";
+import useKakaoLoader from "../hooks/useKakaoLoader";
 import DepartureModal from "./Departure";
 import LocationModal from "./HomeDestination";
-import { useApiClient } from "../assets/hooks/useApiClient";
-import { useNavigate } from 'react-router-dom';
-import { Map, MapMarker, Polyline } from "react-kakao-maps-sdk"
-import useKakaoLoader from "../hooks/useKakaoLoader"
+import PersonCountModal from "./HomePerson";
 import ShareModal from "./ShareModal";
+import TransportModal from "./TransportModal";
 
 
 export default function PlanInfo({info, id, planDispatch, schedule, selectedDay}) {
@@ -50,11 +50,12 @@ export default function PlanInfo({info, id, planDispatch, schedule, selectedDay}
     if (spanRef.current && inputRef.current) {
       const spanWidth = spanRef.current.offsetWidth;
       inputRef.current.style.width = `${spanWidth + 2}px`;
-      console.log(spanWidth)
     }
   }, [title]);
 
   useEffect(() => {
+    if (!schedule) return; // schedule이 undefined/null이면 early return
+    
     const sade = Object.fromEntries(
       Object.entries(schedule).map(([key, places]) => [
         key,
@@ -67,7 +68,6 @@ export default function PlanInfo({info, id, planDispatch, schedule, selectedDay}
       ])
     );
 
-    console.log(sade);
     setSortedState(sade);
   }, [schedule])
 
@@ -125,7 +125,6 @@ export default function PlanInfo({info, id, planDispatch, schedule, selectedDay}
   };
 
   const handleDestinationLocationSelect = (location) => {
-    console.log(location)
     planDispatch({ type: 'SET_FIELD', field: "travelId", value: location.id });
     planDispatch({ type: 'SET_FIELD', field: "travelName", value: location.name.split(" ").pop() });
   };
@@ -270,14 +269,12 @@ const MapModal = ({setMapModalOpen, schedule, selectedDay}) => {
 
   const positions = sortedSchedule.length > 0
   ? sortedSchedule.map(item => ({
-      lat: item.ylocation,
-      lng: item.xlocation,
+      lat: item.yLocation,
+      lng: item.xLocation,
     }))
   : [
       { lat: 37.5665, lng: 126.9780 } // 기본 좌표 (예: 서울 시청)
     ];
-
-  console.log(schedule[selectedDay])
 
   // useEffect를 사용하여 map 인스턴스가 생성된 후 한 번만 실행되도록 설정
   useEffect(() => {
@@ -318,8 +315,8 @@ const MapModal = ({setMapModalOpen, schedule, selectedDay}) => {
                 key={item.placeId}
                 position={{
                   // 인포윈도우가 표시될 위치입니다
-                  lat: item.ylocation,
-                  lng: item.xlocation,
+                  lat: item.yLocation,
+                  lng: item.xLocation,
                 }}
               >
                 <div

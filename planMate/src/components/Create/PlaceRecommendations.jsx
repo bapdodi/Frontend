@@ -73,10 +73,17 @@ const PlaceRecommendations = ({
       const res = await post(`${BASE_URL}/api/plan/${id}/place`, { query: q });
       const newSearchList = Array.isArray(res?.places) ? res.places : [];
 
+      // xlocation/ylocation을 xLocation/yLocation으로 변환
+      const normalizedList = newSearchList.map(place => ({
+        ...place,
+        xLocation: place.xLocation ?? place.xlocation,
+        yLocation: place.yLocation ?? place.ylocation,
+      }));
+
       // places.검색만 덮어쓰기
       onPlacesUpdate({
         ...places,
-        검색: newSearchList,
+        검색: normalizedList,
       });
     } catch (err) {
       console.error("검색 실패:", err);
