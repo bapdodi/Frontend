@@ -132,9 +132,12 @@ function App() {
           // 실제 구독 코드
           client.subscribe(`/topic/${id}/update/plan`, (message) => {
             const received = JSON.parse(message.body);
-            if (JSON.stringify(planRef.current) !== JSON.stringify(received)) {
-              console.log(`📩 플랜 업데이트 수신: ${message.body}`);
-              planDispatch({ type: "SET_ALL", payload: received });
+            // planDto가 유효한 데이터일 때만 업데이트 (null이나 빈 객체 무시)
+            if (received.planDto && received.planDto.planId) {
+              if (JSON.stringify(planRef.current) !== JSON.stringify(received.planDto)) {
+                console.log(`📩 플랜 업데이트 수신: ${message.body}`);
+                planDispatch({ type: "SET_ALL", payload: received.planDto });
+              }
             }
           });
 
@@ -509,7 +512,8 @@ function App() {
   };
 
   useEffect(() => {
-    if (plan) {
+    // plan이 유효한 데이터가 있고, planId가 있을 때만 전송 (초기 로딩 시 빈 데이터 전송 방지)
+    if (plan && plan.planId) {
       const client = stompClientRef.current;
       if (client && client.connected) {
         const planData = {
