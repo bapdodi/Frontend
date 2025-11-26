@@ -132,11 +132,16 @@ function App() {
           // 실제 구독 코드
           client.subscribe(`/topic/${id}/update/plan`, (message) => {
             const received = JSON.parse(message.body);
-            // planDto가 유효한 데이터일 때만 업데이트 (null이나 빈 객체 무시)
-            if (received.planDto && received.planDto.planId) {
-              if (JSON.stringify(planRef.current) !== JSON.stringify(received.planDto)) {
+            // 우선 planDtos 리스트를 처리하고, 없으면 기존 planDto 단일 형식도 처리
+            const incomingPlan =
+              (received.planDtos && received.planDtos.length > 0 && received.planDtos[0]) ||
+              received.planDto ||
+              null;
+
+            if (incomingPlan && incomingPlan.planId) {
+              if (JSON.stringify(planRef.current) !== JSON.stringify(incomingPlan)) {
                 console.log(`📩 플랜 업데이트 수신: ${message.body}`);
-                planDispatch({ type: "SET_ALL", payload: received.planDto });
+                planDispatch({ type: "SET_ALL", payload: incomingPlan });
               }
             }
           });
@@ -169,9 +174,16 @@ function App() {
                 console.log("📩 블록 생성 수신:", message.body);
                 const received = JSON.parse(message.body);
 
+                // support list payload or single DTO
+                const blocks =
+                  (received.timeTablePlaceBlockDtos && received.timeTablePlaceBlockDtos.length > 0 && received.timeTablePlaceBlockDtos) ||
+                  (received.timeTablePlaceBlockDto ? [received.timeTablePlaceBlockDto] : []);
+
+                if (blocks.length === 0) return;
+
                 const converted = {
                   timetables: timetablesRef.current,
-                  placeBlocks: [received.timeTablePlaceBlockDto],
+                  placeBlocks: blocks,
                 };
 
                 const result = transformApiResponse(converted);
@@ -188,25 +200,19 @@ function App() {
                   Object.keys(result).forEach((key) => {
                     const existingItems = prev[key] || [];
 
-                    // 새 항목들을 timetablePlaceBlockId로 맵 만들기
+                    // 새 항목들을 url로 맵 만들기
                     const newItemsMap = new Map(
                       result[key].map((item) => [item.url, item])
                     );
 
                     // 기존 아이템을 순회하며, 새 아이템으로 덮어쓰거나 유지
                     const mergedItems = existingItems.map((item) =>
-                      newItemsMap.has(item.url)
-                        ? newItemsMap.get(item.url)
-                        : item
+                      newItemsMap.has(item.url) ? newItemsMap.get(item.url) : item
                     );
 
                     // 새 아이템 중 기존에 없는 항목만 추가
-                    const existingIds = new Set(
-                      existingItems.map((item) => item.url)
-                    );
-                    const newItemsToAdd = result[key].filter(
-                      (item) => !existingIds.has(item.url)
-                    );
+                    const existingIds = new Set(existingItems.map((item) => item.url));
+                    const newItemsToAdd = result[key].filter((item) => !existingIds.has(item.url));
 
                     updated[key] = [...mergedItems, ...newItemsToAdd];
                   });
@@ -229,9 +235,15 @@ function App() {
                 console.log("📩 블록 업데이트 수신:", message.body);
                 const received = JSON.parse(message.body);
 
+                const blocks =
+                  (received.timeTablePlaceBlockDtos && received.timeTablePlaceBlockDtos.length > 0 && received.timeTablePlaceBlockDtos) ||
+                  (received.timeTablePlaceBlockDto ? [received.timeTablePlaceBlockDto] : []);
+
+                if (blocks.length === 0) return;
+
                 const converted = {
                   timetables: timetablesRef.current,
-                  placeBlocks: [received.timeTablePlaceBlockDto],
+                  placeBlocks: blocks,
                 };
                 const result = transformApiResponse(converted);
 
@@ -241,27 +253,16 @@ function App() {
                     const existingItems = prev[key] || [];
 
                     // 새 항목들을 timetablePlaceBlockId로 맵 만들기
-                    const newItemsMap = new Map(
-                      result[key].map((item) => [
-                        item.timetablePlaceBlockId,
-                        item,
-                      ])
-                    );
+                    const newItemsMap = new Map(result[key].map((item) => [item.timetablePlaceBlockId, item]));
 
                     // 기존 아이템을 순회하며, 새 아이템으로 덮어쓰거나 유지
                     const mergedItems = existingItems.map((item) =>
-                      newItemsMap.has(item.timetablePlaceBlockId)
-                        ? newItemsMap.get(item.timetablePlaceBlockId)
-                        : item
+                      newItemsMap.has(item.timetablePlaceBlockId) ? newItemsMap.get(item.timetablePlaceBlockId) : item
                     );
 
                     // 새 아이템 중 기존에 없는 항목만 추가
-                    const existingIds = new Set(
-                      existingItems.map((item) => item.timetablePlaceBlockId)
-                    );
-                    const newItemsToAdd = result[key].filter(
-                      (item) => !existingIds.has(item.timetablePlaceBlockId)
-                    );
+                    const existingIds = new Set(existingItems.map((item) => item.timetablePlaceBlockId));
+                    const newItemsToAdd = result[key].filter((item) => !existingIds.has(item.timetablePlaceBlockId));
 
                     updated[key] = [...mergedItems, ...newItemsToAdd];
                   });
@@ -283,20 +284,25 @@ function App() {
                 JSON.stringify(lastMessageRef.current)
               ) {
                 console.log("📩 블록 삭제 수신:", message.body);
-                const received = JSON.parse(message.body).timeTablePlaceBlockDto
-                  .blockId;
+                const received = JSON.parse(message.body);
+
+                const blocks =
+                  (received.timeTablePlaceBlockDtos && received.timeTablePlaceBlockDtos.length > 0 && received.timeTablePlaceBlockDtos) ||
+                  (received.timeTablePlaceBlockDto ? [received.timeTablePlaceBlockDto] : []);
+
+                const idsToRemove = blocks.map((b) => b.blockId).filter(Boolean);
+
+                if (idsToRemove.length === 0) return;
 
                 setSchedule((prevSchedule) => {
                   // 모든 timetableId 키에 대해 순회하며 필터링
                   const newSchedule = {};
 
-                  Object.entries(prevSchedule).forEach(
-                    ([timetableId, blocks]) => {
-                      newSchedule[timetableId] = blocks.filter(
-                        (block) => block.timetablePlaceBlockId !== received
-                      );
-                    }
-                  );
+                  Object.entries(prevSchedule).forEach(([timetableId, blocks]) => {
+                    newSchedule[timetableId] = blocks.filter(
+                      (block) => !idsToRemove.includes(block.timetablePlaceBlockId)
+                    );
+                  });
 
                   return newSchedule;
                 });
@@ -351,7 +357,32 @@ function App() {
           console.log("placeBlocks 개수:", planData.placeBlocks?.length || 0);
           console.log("userDayIndexes:", planData.userDayIndexes);
           
-          const planFrame = planData.planFrame;
+          // Support responses that return planDtos (list) or planFrame (single)
+          let planFrame = planData.planFrame;
+          if (!planFrame && planData.planDtos && planData.planDtos.length > 0) {
+            // normalize first plan DTO into planFrame shape
+            const planDto = planData.planDtos[0];
+            planFrame = {
+              planId: planDto.planId,
+              planName: planDto.planName,
+              departure: planDto.departure,
+              travelName: planDto.travelName || planDto.travel,
+              travelId: planDto.travelId,
+              transportationCategoryId: planDto.transportationCategoryId,
+              adultCount: planDto.adultCount,
+              childCount: planDto.childCount,
+            };
+            // also normalize timetables if provided as timeTableDtos
+            if (planData.timeTableDtos && planData.timeTableDtos.length > 0) {
+              planData.timetables = planData.timeTableDtos.map((t) => ({
+                timeTableId: t.timeTableId,
+                date: t.date,
+                startTime: t.timeTableStartTime || t.startTime,
+                endTime: t.timeTableEndTime || t.endTime,
+                planId: t.planId,
+              }));
+            }
+          }
 
           setData(planData);
 
@@ -491,13 +522,31 @@ function App() {
 
     if (isAuthenticated()) {
       try {
-        await patch(`${BASE_URL}/api/plan/${id}/save`, {
-          departure: data.planFrame.departure,
-          travel: data.planFrame.travel,
-          transportationCategoryId: info.transportation,
+        // build planDto and timeTableDtos lists to send like timetables
+        const planDto = {
+          planId: Number(id),
+          planName: plan.planName || data?.planFrame?.planName,
+          departure: plan.departure || data?.planFrame?.departure,
+          travelName: plan.travelName || data?.planFrame?.travel,
+          travelId: plan.travelId || data?.planFrame?.travelId,
           adultCount: info.adultCount,
           childCount: info.childCount,
-          timetables: data.timetables,
+          transportationCategoryId:
+            plan.transportationCategoryId || data?.planFrame?.transportationCategoryId || info.transportation,
+        };
+
+        const timeTableDtos = timetables.map((t) => ({
+          timeTableId: t.timeTableId,
+          date: t.date,
+          timeTableStartTime: t.startTime || t.timeTableStartTime,
+          timeTableEndTime: t.endTime || t.timeTableEndTime,
+          planId: Number(id),
+        }));
+
+        await patch(`${BASE_URL}/api/plan/${id}/save`, {
+          planDtos: [planDto],
+          timeTableDtos: timeTableDtos,
+          // keep existing block payload key to avoid breaking backend expectations
           timetablePlaceBlocks: scheduleToExport,
         });
       } catch (err) {
@@ -516,14 +565,15 @@ function App() {
     if (plan && plan.planId) {
       const client = stompClientRef.current;
       if (client && client.connected) {
+        // 리스트 형태인 planDtos로 전송
         const planData = {
-          planDto: plan
+          planDtos: [plan],
         };
         client.publish({
           destination: `/app/${id}/update/plan`,
           body: JSON.stringify(planData),
         });
-        console.log("🚀 플랜 업데이트 전송:", planData);
+        console.log("🚀 플랜 업데이트 전송 (list):", planData);
       }
     }
   }, [plan]);
@@ -594,7 +644,7 @@ function App() {
                 destination: `/app/${id}/create/timetableplaceblock`,
                 body: JSON.stringify({
                   eventId: clientId.current,
-                  ...initialCreate,
+                  timeTablePlaceBlockDtos: [initialCreate.timeTablePlaceBlockDto],
                 }),
               });
               console.log("🚀 블록 생성 전송:", initialCreate);
@@ -617,7 +667,7 @@ function App() {
               destination: `/app/${id}/delete/timetableplaceblock`,
               body: JSON.stringify({
                 eventId: clientId.current,
-                ...initialDelete,
+                timeTablePlaceBlockDtos: [initialDelete.timeTablePlaceBlockDto],
               }),
             });
             console.log("🚀 블록 삭제 전송:", initialDelete);
@@ -654,7 +704,7 @@ function App() {
                 destination: `/app/${id}/update/timetableplaceblock`,
                 body: JSON.stringify({
                   eventId: clientId.current,
-                  ...initialUpdate,
+                  timeTablePlaceBlockDtos: [initialUpdate.timeTablePlaceBlockDto],
                 }),
               });
             }
