@@ -118,13 +118,20 @@ function App() {
   
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
-    const SERVER_URL = `${BASE_URL}/ws-plan?token=${encodeURIComponent(token)}`;
+    // include roomId (plan id) so server can identify/join the room on handshake
+    const roomParam = id ? `&roomId=${encodeURIComponent(id)}` : "";
+    const SERVER_URL = `${BASE_URL}/ws-plan?token=${encodeURIComponent(token)}${roomParam}`;
 
     const connectWebSocket = () => {
       // 실제 연결을 위한 코드 (라이브러리 설치 후 주석 해제)
       const socket = new SockJS(SERVER_URL);
       const client = new Client({
         webSocketFactory: () => socket,
+        // send roomId and token as STOMP CONNECT headers so server can read native headers
+        connectHeaders: {
+          roomId: id,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         onConnect: (frame) => {
           setIsConnected(true);
           stompClientRef.current = client;
@@ -621,15 +628,15 @@ function App() {
 
             const initialCreate = {
               timeTablePlaceBlockDto: {
-                timeTableId: Number(key),
-                blockId: null,
-                placeCategoryId: item.categoryId,
+                cacheTimeTableId: Number(key),
+                cacheTimeTableBlockId: null,
+                cachePlaceCategoryId: item.categoryId,
+                cachePlacePhotoId: item.placeId,
                 placeName: item.name,
                 placeTheme: "테스트",
                 placeRating: item.rating,
                 placeAddress: item.formatted_address,
                 placeLink: item.url,
-                placeId: item.placeId,
                 date: date,
                 blockStartTime: `${item.timeSlot}:00`,
                 blockEndTime: `${endTime}:00`,
@@ -654,12 +661,12 @@ function App() {
         if (removed.length > 0) {
           const item = removed[0];
 
-          const initialDelete = {
-            timeTablePlaceBlockDto: {
-              blockId: item.timetablePlaceBlockId,
-              timeTableId: Number(key),
-            },
-          };
+            const initialDelete = {
+              timeTablePlaceBlockDto: {
+                cacheTimeTableBlockId: item.timetablePlaceBlockId,
+                cacheTimeTableId: Number(key),
+              },
+            };
 
           const client = stompClientRef.current;
           if (client && client.connected) {
@@ -681,9 +688,10 @@ function App() {
 
             const initialUpdate = {
               timeTablePlaceBlockDto: {
-                timeTableId: Number(key),
-                blockId: item.timetablePlaceBlockId,
-                placeCategory: item.categoryId,
+                cacheTimeTableId: Number(key),
+                cacheTimeTableBlockId: item.timetablePlaceBlockId,
+                cachePlaceCategoryId: item.categoryId,
+                cachePlacePhotoId: item.placeId,
                 placeName: item.name,
                 placeTheme: "테스트",
                 placeRating: item.rating,
