@@ -218,26 +218,41 @@ const Modal = ({ setIsModalOpen, timetables, timeDispatch, stompClientRef, id, s
 
     if (client && client.connected) {
       if (create.timeTableDtos && create.timeTableDtos.length > 0) {
-        console.log("🚀 타임테이블 생성 전송:", create);
+        const payload = {
+          entity: "timetable",
+          action: "create",
+          ...create
+        };
+        console.log("🚀 타임테이블 생성 전송:", payload);
         client.publish({
-          destination: `/app/${id}/create/timetable`,
-          body: JSON.stringify(create),
+          destination: `/app/${id}`,
+          body: JSON.stringify(payload),
         });
       }
       
       if (update.timeTableDtos && update.timeTableDtos.length > 0) {
-        console.log("🚀 타임테이블 업데이트 전송:", update);
+        const payload = {
+          entity: "timetable",
+          action: "update",
+          ...update
+        };
+        console.log("🚀 타임테이블 업데이트 전송:", payload);
         client.publish({
-          destination: `/app/${id}/update/timetable`,
-          body: JSON.stringify(update),
+          destination: `/app/${id}`,
+          body: JSON.stringify(payload),
         });
       }
       
       if (deleteTime.timeTableDtos && deleteTime.timeTableDtos.length > 0) {
-        console.log("🚀 타임테이블 삭제 전송:", deleteTime);
+        const payload = {
+          entity: "timetable",
+          action: "delete",
+          ...deleteTime
+        };
+        console.log("🚀 타임테이블 삭제 전송:", payload);
         client.publish({
-          destination: `/app/${id}/delete/timetable`,
-          body: JSON.stringify(deleteTime),
+          destination: `/app/${id}`,
+          body: JSON.stringify(payload),
         });
       }
       

@@ -48,14 +48,14 @@ export const transformApiResponse = (apiResponse) => {
 
     // 변환된 객체 생성
     const transformedPlace = {
-      timetablePlaceBlockId: place.blockId ?? place.timetablePlaceBlockId,
+      timetablePlaceBlockId: place.blockId ?? place.timetablePlaceBlockId ?? place.cacheTimeTablePlaceBlockId,
       placeId: placeId,
       url: place.placeLink,
       name: place.placeName,
       formatted_address: place.placeAddress,
       rating: place.placeRating,
       iconUrl: iconUrl,
-      categoryId: place.placeCategory ?? place.placeCategoryId,
+      categoryId: place.placeCategory ?? place.placeCategoryId ?? place.cachePlaceCategoryId,
       xLocation: place.xLocation ?? place.xlocation,
       yLocation: place.yLocation ?? place.ylocation,
       timeSlot: timeSlot,
@@ -64,7 +64,7 @@ export const transformApiResponse = (apiResponse) => {
 
     // 해당하는 timetableId를 찾아서 데이터 추가
     // const placeIndex = placeBlocks.indexOf(place);
-    const targetTimetableId = place.timeTableId ?? place.timetableId;
+    const targetTimetableId = place.timeTableId ?? place.timetableId ?? place.cacheTimeTableId;
 
     // if (placeIndex < 4) {
     //   targetTimetableId = timetables[0]?.timetableId || 78;

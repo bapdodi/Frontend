@@ -137,110 +137,43 @@ function App() {
           stompClientRef.current = client;
 
           // 실제 구독 코드
-          client.subscribe(`/topic/${id}/update/plan`, (message) => {
+          client.subscribe(`/topic/${id}`, (message) => {
             const received = JSON.parse(message.body);
-            // 우선 planDtos 리스트를 처리하고, 없으면 기존 planDto 단일 형식도 처리
-            const incomingPlan =
-              (received.planDtos && received.planDtos.length > 0 && received.planDtos[0]) ||
-              received.planDto ||
-              null;
+            const { entity, action, eventId } = received;
 
-            if (incomingPlan && incomingPlan.planId) {
-              if (JSON.stringify(planRef.current) !== JSON.stringify(incomingPlan)) {
-                console.log(`📩 플랜 업데이트 수신: ${message.body}`);
-                planDispatch({ type: "SET_ALL", payload: incomingPlan });
-              }
-            }
-          });
+            if (eventId === clientId.current) return;
 
-          client.subscribe(`/topic/${id}/create/timetable`, (message) => {
-            console.log("📩 타임테이블 생성 수신:", message.body);
-            timeDispatch({ type: "create", payload: JSON.parse(message.body) });
-          });
+            console.log(`📩 [${entity}] ${action} 수신:`, received);
 
-          client.subscribe(`/topic/${id}/update/timetable`, (message) => {
-            console.log("📩 타임테이블 업데이트 수신:", message.body);
-            const received = JSON.parse(message.body);
-            timeDispatch({ type: "update", payload: received.timeTableDtos });
-          });
+            switch (entity?.toLowerCase()) {
+              case "plan":
+                const incomingPlan =
+                  (received.planDtos && received.planDtos.length > 0 && received.planDtos[0]) ||
+                  received.planDto ||
+                  null;
 
-          client.subscribe(`/topic/${id}/delete/timetable`, (message) => {
-            console.log("📩 타임테이블 삭제 수신:", message.body);
-            timeDispatch({ type: "delete", payload: JSON.parse(message.body) });
-          });
-
-          client.subscribe(
-            `/topic/${id}/create/timetableplaceblock`,
-            (message) => {
-              const msg = JSON.parse(message.body);
-              if (msg.eventId === clientId.current) return;
-              if (
-                JSON.stringify(message.body) !==
-                JSON.stringify(lastMessageRef.current)
-              ) {
-                console.log("📩 블록 생성 수신:", message.body);
-                const received = JSON.parse(message.body);
-
-                // support list payload or single DTO
-                const blocks =
-                  (received.timeTablePlaceBlockDtos && received.timeTablePlaceBlockDtos.length > 0 && received.timeTablePlaceBlockDtos) ||
-                  (received.timeTablePlaceBlockDto ? [received.timeTablePlaceBlockDto] : []);
-
-                if (blocks.length === 0) return;
-
-                const converted = {
-                  timetables: timetablesRef.current,
-                  placeBlocks: blocks,
-                };
-
-                const result = transformApiResponse(converted);
-
-                const findId = findSameById(setTransformedData, result);
-
-                if (findId) {
-                  return;
+                if (incomingPlan && incomingPlan.planId) {
+                  if (JSON.stringify(planRef.current) !== JSON.stringify(incomingPlan)) {
+                    planDispatch({ type: "SET_ALL", payload: incomingPlan });
+                  }
                 }
-                noUpdate.current = true;
+                break;
 
-                setSchedule((prev) => {
-                  const updated = { ...prev };
-                  Object.keys(result).forEach((key) => {
-                    const existingItems = prev[key] || [];
+              case "timetable":
+                if (action === "create") {
+                  timeDispatch({ type: "create", payload: received });
+                } else if (action === "update") {
+                  timeDispatch({ type: "update", payload: received.timeTableDtos });
+                } else if (action === "delete") {
+                  timeDispatch({ type: "delete", payload: received });
+                }
+                break;
 
-                    // 새 항목들을 url로 맵 만들기
-                    const newItemsMap = new Map(
-                      result[key].map((item) => [item.url, item])
-                    );
-
-                    // 기존 아이템을 순회하며, 새 아이템으로 덮어쓰거나 유지
-                    const mergedItems = existingItems.map((item) =>
-                      newItemsMap.has(item.url) ? newItemsMap.get(item.url) : item
-                    );
-
-                    // 새 아이템 중 기존에 없는 항목만 추가
-                    const existingIds = new Set(existingItems.map((item) => item.url));
-                    const newItemsToAdd = result[key].filter((item) => !existingIds.has(item.url));
-
-                    updated[key] = [...mergedItems, ...newItemsToAdd];
-                  });
-                  return updated;
-                });
-              }
-              lastMessageRef.current = message.body;
-            }
-          );
-
-          client.subscribe(
-            `/topic/${id}/update/timetableplaceblock`,
-            (message) => {
-              const msg = JSON.parse(message.body);
-              if (msg.eventId === clientId.current) return;
-              if (
-                JSON.stringify(message.body) !==
-                JSON.stringify(lastMessageRef.current)
-              ) {
-                console.log("📩 블록 업데이트 수신:", message.body);
-                const received = JSON.parse(message.body);
+              case "timetableplaceblock":
+                if (
+                  JSON.stringify(message.body) ===
+                  JSON.stringify(lastMessageRef.current)
+                ) return;
 
                 const blocks =
                   (received.timeTablePlaceBlockDtos && received.timeTablePlaceBlockDtos.length > 0 && received.timeTablePlaceBlockDtos) ||
@@ -248,75 +181,56 @@ function App() {
 
                 if (blocks.length === 0) return;
 
-                const converted = {
-                  timetables: timetablesRef.current,
-                  placeBlocks: blocks,
-                };
-                const result = transformApiResponse(converted);
+                if (action === "create" || action === "update") {
+                  const converted = {
+                    timetables: timetablesRef.current,
+                    placeBlocks: blocks,
+                  };
+                  const result = transformApiResponse(converted);
 
-                setSchedule((prev) => {
-                  const updated = { ...prev };
-                  Object.keys(result).forEach((key) => {
-                    const existingItems = prev[key] || [];
+                  if (action === "create") {
+                    const findId = findSameById(setTransformedData, result);
+                    if (findId) return;
+                    noUpdate.current = true;
+                  }
 
-                    // 새 항목들을 timetablePlaceBlockId로 맵 만들기
-                    const newItemsMap = new Map(result[key].map((item) => [item.timetablePlaceBlockId, item]));
+                  setSchedule((prev) => {
+                    const updated = { ...prev };
+                    Object.keys(result).forEach((key) => {
+                      const existingItems = prev[key] || [];
+                      const idKey = action === "create" ? "url" : "timetablePlaceBlockId";
+                      
+                      const newItemsMap = new Map(result[key].map((item) => [item[idKey], item]));
 
-                    // 기존 아이템을 순회하며, 새 아이템으로 덮어쓰거나 유지
-                    const mergedItems = existingItems.map((item) =>
-                      newItemsMap.has(item.timetablePlaceBlockId) ? newItemsMap.get(item.timetablePlaceBlockId) : item
-                    );
+                      const mergedItems = existingItems.map((item) =>
+                        newItemsMap.has(item[idKey]) ? newItemsMap.get(item[idKey]) : item
+                      );
 
-                    // 새 아이템 중 기존에 없는 항목만 추가
-                    const existingIds = new Set(existingItems.map((item) => item.timetablePlaceBlockId));
-                    const newItemsToAdd = result[key].filter((item) => !existingIds.has(item.timetablePlaceBlockId));
+                      const existingIds = new Set(existingItems.map((item) => item[idKey]));
+                      const newItemsToAdd = result[key].filter((item) => !existingIds.has(item[idKey]));
 
-                    updated[key] = [...mergedItems, ...newItemsToAdd];
+                      updated[key] = [...mergedItems, ...newItemsToAdd];
+                    });
+                    return updated;
                   });
-                  return updated;
-                });
-              }
+                } else if (action === "delete") {
+                  const idsToRemove = blocks.map((b) => b.blockId || b.cacheTimeTableBlockId).filter(Boolean);
+                  if (idsToRemove.length === 0) return;
 
-              lastMessageRef.current = message.body;
-            }
-          );
-
-          client.subscribe(
-            `/topic/${id}/delete/timetableplaceblock`,
-            (message) => {
-              const msg = JSON.parse(message.body);
-              if (msg.eventId === clientId.current) return;
-              if (
-                JSON.stringify(message.body) !==
-                JSON.stringify(lastMessageRef.current)
-              ) {
-                console.log("📩 블록 삭제 수신:", message.body);
-                const received = JSON.parse(message.body);
-
-                const blocks =
-                  (received.timeTablePlaceBlockDtos && received.timeTablePlaceBlockDtos.length > 0 && received.timeTablePlaceBlockDtos) ||
-                  (received.timeTablePlaceBlockDto ? [received.timeTablePlaceBlockDto] : []);
-
-                const idsToRemove = blocks.map((b) => b.blockId).filter(Boolean);
-
-                if (idsToRemove.length === 0) return;
-
-                setSchedule((prevSchedule) => {
-                  // 모든 timetableId 키에 대해 순회하며 필터링
-                  const newSchedule = {};
-
-                  Object.entries(prevSchedule).forEach(([timetableId, blocks]) => {
-                    newSchedule[timetableId] = blocks.filter(
-                      (block) => !idsToRemove.includes(block.timetablePlaceBlockId)
-                    );
+                  setSchedule((prevSchedule) => {
+                    const newSchedule = {};
+                    Object.entries(prevSchedule).forEach(([timetableId, blocks]) => {
+                      newSchedule[timetableId] = blocks.filter(
+                        (block) => !idsToRemove.includes(block.timetablePlaceBlockId)
+                      );
+                    });
+                    return newSchedule;
                   });
-
-                  return newSchedule;
-                });
-              }
-              lastMessageRef.current = message.body;
+                }
+                lastMessageRef.current = message.body;
+                break;
             }
-          );
+          });
         },
         onStompError: (frame) => {
           console.error("❌ STOMP 에러:", frame.headers["message"]);
@@ -572,15 +486,17 @@ function App() {
     if (plan && plan.planId) {
       const client = stompClientRef.current;
       if (client && client.connected) {
-        // 리스트 형태인 planDtos로 전송
         const planData = {
+          entity: "plan",
+          action: "update",
+          eventId: clientId.current,
           planDtos: [plan],
         };
         client.publish({
-          destination: `/app/${id}/update/plan`,
+          destination: `/app/${id}/sync`,
           body: JSON.stringify(planData),
         });
-        console.log("🚀 플랜 업데이트 전송 (list):", planData);
+        console.log("🚀 플랜 업데이트 전송:", planData);
       }
     }
   }, [plan]);
@@ -648,8 +564,10 @@ function App() {
             const client = stompClientRef.current;
             if (client && client.connected) {
               client.publish({
-                destination: `/app/${id}/create/timetableplaceblock`,
+                destination: `/app/${id}/sync`,
                 body: JSON.stringify({
+                  entity: "timetableplaceblock",
+                  action: "create",
                   eventId: clientId.current,
                   timeTablePlaceBlockDtos: [initialCreate.timeTablePlaceBlockDto],
                 }),
@@ -671,8 +589,10 @@ function App() {
           const client = stompClientRef.current;
           if (client && client.connected) {
             client.publish({
-              destination: `/app/${id}/delete/timetableplaceblock`,
+              destination: `/app/${id}/sync`,
               body: JSON.stringify({
+                entity: "timetableplaceblock",
+                action: "delete",
                 eventId: clientId.current,
                 timeTablePlaceBlockDtos: [initialDelete.timeTablePlaceBlockDto],
               }),
@@ -709,8 +629,10 @@ function App() {
             if (client && client.connected) {
               console.log("🚀 블록 업데이트 전송:", initialUpdate);
               client.publish({
-                destination: `/app/${id}/update/timetableplaceblock`,
+                destination: `/app/${id}/sync`,
                 body: JSON.stringify({
+                  entity: "timetableplaceblock",
+                  action: "update",
                   eventId: clientId.current,
                   timeTablePlaceBlockDtos: [initialUpdate.timeTablePlaceBlockDto],
                 }),
