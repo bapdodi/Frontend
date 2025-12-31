@@ -112,7 +112,7 @@ function App() {
     return Object.values(data)
       .flat()
       .find(
-        (item) => item.timetablePlaceBlockId === checkItem.timetablePlaceBlockId
+        (item) => item.blockId === checkItem.blockId
       );
   }
   
@@ -198,7 +198,7 @@ function App() {
                     const updated = { ...prev };
                     Object.keys(result).forEach((key) => {
                       const existingItems = prev[key] || [];
-                      const idKey = action === "create" ? "url" : "timetablePlaceBlockId";
+                      const idKey = action === "create" ? "url" : "blockId";
                       
                       const newItemsMap = new Map(result[key].map((item) => [item[idKey], item]));
 
@@ -214,14 +214,14 @@ function App() {
                     return updated;
                   });
                 } else if (action === "delete") {
-                  const idsToRemove = blocks.map((b) => b.blockId || b.cacheTimeTableBlockId).filter(Boolean);
+                  const idsToRemove = blocks.map((b) => b.blockId).filter(Boolean);
                   if (idsToRemove.length === 0) return;
 
                   setSchedule((prevSchedule) => {
                     const newSchedule = {};
                     Object.entries(prevSchedule).forEach(([timetableId, blocks]) => {
                       newSchedule[timetableId] = blocks.filter(
-                        (block) => !idsToRemove.includes(block.timetablePlaceBlockId)
+                        (block) => !idsToRemove.includes(block.blockId)
                       );
                     });
                     return newSchedule;
@@ -493,7 +493,7 @@ function App() {
           planDtos: [plan],
         };
         client.publish({
-          destination: `/app/${id}/sync`,
+          destination: `/app/${id}`,
           body: JSON.stringify(planData),
         });
         console.log("🚀 플랜 업데이트 전송:", planData);
@@ -538,16 +538,16 @@ function App() {
 
         if (added.length > 0) {
           const item = added[0];
-          if (!item.timetablePlaceBlockId) {
+          if (!item.blockId) {
             const date = getDateById(Number(key));
             const endTime = addMinutes(item.timeSlot, item.duration * 15);
 
             const initialCreate = {
               timeTablePlaceBlockDto: {
-                cacheTimeTableId: Number(key),
-                cacheTimeTableBlockId: null,
-                cachePlaceCategoryId: item.categoryId,
-                cachePlacePhotoId: item.placeId,
+                timeTableId: Number(key),
+                blockId: null,
+                placeCategoryId: item.categoryId,
+                placePhotoId: item.placeId,
                 placeName: item.name,
                 placeTheme: "테스트",
                 placeRating: item.rating,
@@ -564,7 +564,7 @@ function App() {
             const client = stompClientRef.current;
             if (client && client.connected) {
               client.publish({
-                destination: `/app/${id}/sync`,
+                destination: `/app/${id}`,
                 body: JSON.stringify({
                   entity: "timetableplaceblock",
                   action: "create",
@@ -581,15 +581,15 @@ function App() {
 
             const initialDelete = {
               timeTablePlaceBlockDto: {
-                cacheTimeTableBlockId: item.timetablePlaceBlockId,
-                cacheTimeTableId: Number(key),
+                blockId: item.blockId,
+                timeTableId: Number(key),
               },
             };
 
           const client = stompClientRef.current;
           if (client && client.connected) {
             client.publish({
-              destination: `/app/${id}/sync`,
+              destination: `/app/${id}`,
               body: JSON.stringify({
                 entity: "timetableplaceblock",
                 action: "delete",
@@ -608,10 +608,10 @@ function App() {
 
             const initialUpdate = {
               timeTablePlaceBlockDto: {
-                cacheTimeTableId: Number(key),
-                cacheTimeTableBlockId: item.timetablePlaceBlockId,
-                cachePlaceCategoryId: item.categoryId,
-                cachePlacePhotoId: item.placeId,
+                timeTableId: Number(key),
+                blockId: item.blockId,
+                placeCategoryId: item.categoryId,
+                placePhotoId: item.placeId,
                 placeName: item.name,
                 placeTheme: "테스트",
                 placeRating: item.rating,
@@ -629,7 +629,7 @@ function App() {
             if (client && client.connected) {
               console.log("🚀 블록 업데이트 전송:", initialUpdate);
               client.publish({
-                destination: `/app/${id}/sync`,
+                destination: `/app/${id}`,
                 body: JSON.stringify({
                   entity: "timetableplaceblock",
                   action: "update",
