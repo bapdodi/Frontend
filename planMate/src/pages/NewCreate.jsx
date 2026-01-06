@@ -81,6 +81,7 @@ function App() {
   const [plan, planDispatch] = useReducer(planReducer, initialPlanState);
   const planRef = useRef(plan);
   const [data, setData] = useState(null);
+  const [activeUsers, setActiveUsers] = useState([]);
   const [timetables, timeDispatch] = useReducer(timetableReducer, []);
   const timetablesRef = useRef(timetables);
   const navigate = useNavigate();
@@ -229,6 +230,16 @@ function App() {
                 }
                 lastMessageRef.current = message.body;
                 break;
+            }
+          });
+
+          // Presence(접속자) 구독 추가
+          client.subscribe(`/topic/plan-presence/${id}`, (message) => {
+            const payload = JSON.parse(message.body);
+            // 백엔드가 보낸 'users' 리스트로 상태 업데이트
+            if (payload.users) {
+              setActiveUsers(payload.users);
+              console.log("👥 실시간 접속자 업데이트:", payload.users);
             }
           });
         },
@@ -715,6 +726,7 @@ function App() {
           savePlan={savePlan}
           schedule={schedule}
           selectedDay={selectedDay}
+          activeUsers={activeUsers}
         />
       )}
 

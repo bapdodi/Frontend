@@ -12,7 +12,7 @@ import ShareModal from "./ShareModal";
 import TransportModal from "./TransportModal";
 
 
-export default function PlanInfo({info, id, planDispatch, schedule, selectedDay}) {
+export default function PlanInfo({info, id, planDispatch, schedule, selectedDay, activeUsers = []}) {
   const { patch, isAuthenticated } = useApiClient();
   const navigate = useNavigate();
   const flexCenter = "flex items-center";
@@ -194,6 +194,20 @@ export default function PlanInfo({info, id, planDispatch, schedule, selectedDay}
           </div>
         </button>
       </div>
+
+      <div className={`${flexCenter} ml-auto mr-8 -space-x-3`}>
+        {activeUsers.map((user, idx) => (
+          <div
+            key={`${user.uid}-${idx}`}
+            title={user.userNickname}
+            className="w-9 h-9 rounded-full border-2 border-white bg-main text-white flex items-center justify-center text-sm font-bold shadow-sm cursor-help hover:z-10 transition-all"
+            style={{ backgroundColor: `hsl(${(parseInt(user.uid) * 137) || (idx * 45) % 360}, 60%, 45%)` }}
+          >
+            {user.userNickname?.charAt(0) || '?'}
+          </div>
+        ))}
+      </div>
+
       <div className={`${flexCenter} mr-2`}>
         <button onClick={() => setMapModalOpen(true)} className="px-4 py-2 rounded-lg bg-gray-300 mr-3 hover:bg-gray-400">
           지도로 보기
